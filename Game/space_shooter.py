@@ -4,6 +4,7 @@ from pygame.locals import K_w, K_s, K_a, K_d, K_SPACE
 from linalg import Vector, Matrix
 import math as m
 import random as rd
+import buttons
 
 global_id = 0
 
@@ -15,25 +16,23 @@ sw.keyboard.add_extra_keys([K_w, K_s, K_a, K_d, K_SPACE])
 
 game = ""
 
-def mouse_at(rect):
-    if sw.rat.x > rect[0] and sw.rat.x < rect[0] + rect[2] and sw.rat.y > rect[1] and sw.rat.y < rect[1] + rect[3]:
-        return True
-    return False
-
 class Game(sw.Entity):
     def __init__(self):
         super().__init__("Enemy", (0, 0, 0), None, False, has_tick=True, has_draw=True)
         self.scene = "menu"
         global game
         game = self
+
         self.objects = []
         self.player = Player((window_size[0] / 2, window_size[1] / 2, 0))
         self.entities = [self.player]
+
         self.time = 0
+        
         self.font = {
-            "rb_36": pg.font.Font("Sweet\\fonts\\Roboto.ttf", 36),
-            "rb_18": pg.font.Font("Sweet\\fonts\\Roboto.ttf", 18),
-            "st_54": pg.font.Font("Sweet\\fonts\\Strengthen.ttf", 54),
+            "rb_36": pg.font.Font("Game\\fonts\\Roboto.ttf", 36),
+            "rb_18": pg.font.Font("Game\\fonts\\Roboto.ttf", 18),
+            "st_54": pg.font.Font("Game\\fonts\\Strengthen.ttf", 54),
             }
         self.texts = {
             "title": self.font["st_54"].render("Space Shooter", True, (255, 255, 255)),
@@ -60,6 +59,47 @@ class Game(sw.Entity):
 
         self.max_spawn_time = 300
 
+        self.play_button = buttons.Button(self, 0, [200, 0], {
+            "name": "basic",
+            "text": self.texts["play"],
+            "action": buttons.play_func,
+            "animation": {
+                "pre_pos": (window_size[0] / 2, window_size[1] + 50),
+                "post_pos": (window_size[0] / 2, window_size[1] / 2),
+                "ease_type": sw.enums.EASE_QUADRATIC,
+            }
+        })
+        self.quit_button = buttons.Button(self, 0, [200, 0], {
+            "name": "basic",
+            "text": self.texts["quit"],
+            "action": buttons.quit_func,
+            "animation": {
+                "pre_pos": (window_size[0] / 2, window_size[1] + 100),
+                "post_pos": (window_size[0] / 2, window_size[1] / 2 + 50),
+                "ease_type": sw.enums.EASE_QUADRATIC,
+            }
+        })
+        self.menu_button = buttons.Button(self, 0, [200, 0], {
+            "name": "basic",
+            "text": self.texts["return"],
+            "action": buttons.menu_func,
+            "animation": {
+                "pre_pos": (window_size[0] / 2, window_size[1] + 100),
+                "post_pos": (window_size[0] / 4, window_size[1] / 2),
+                "ease_type": sw.enums.EASE_QUADRATIC,
+            }
+        })
+        self.replay_button = buttons.Button(self, 0, [200, 0], {
+            "name": "basic",
+            "text": self.texts["again"],
+            "action": buttons.replay_func,
+            "animation": {
+                "pre_pos": (window_size[0] / 2, window_size[1] + 100),
+                "post_pos": (window_size[0] * 3 / 4, window_size[1] / 2),
+                "ease_type": sw.enums.EASE_QUADRATIC,
+            }
+        })
+
     def reset_game(self):
         self.player.points = 0
         self.player.alive = True
@@ -69,6 +109,7 @@ class Game(sw.Entity):
         self.time = 0
         self.player.pos = Vector(window_size[0] / 2, window_size[1] / 2)
         self.player.pos_speed = Vector(0, 0)
+        self.point_sum = 0
 
     def tick(self):
         if self.scene == "menu":
@@ -88,21 +129,13 @@ class Game(sw.Entity):
         
     def menu_tick(self):
         self.time += 1
+        if self.time < 130:
+            self.play_button.update_anim(self.time / 100)
+            self.quit_button.update_anim((self.time - 30) / 100)
 
-        if mouse_at((self.play_pos[0], self.play_pos[1], self.texts["play"].get_width(), self.texts["play"].get_height())):
-            self.play_color = (40, 40, 40)
-            if sw.rat.pressed(sw.M_LEFT):
-                self.scene = "game"
-        else:
-            self.play_color = (0, 0, 0)
-
-        if mouse_at((self.quit_pos[0], self.quit_pos[1], self.texts["quit"].get_width(), self.texts["quit"].get_height())):
-            self.quit_color = (40, 40, 40)
-            if sw.rat.pressed(sw.M_LEFT):
-                sw.running = False
-        else:
-            self.quit_color = (0, 0, 0)
-
+        self.play_button.tick()
+        self.quit_button.tick()
+        
     def menu_draw(self):
         t = min(self.time / 70, 1)
         t = sw.transition.ease(sw.enums.EASE_QUADRATIC, t)
@@ -110,37 +143,16 @@ class Game(sw.Entity):
         transform_title = pg.transform.scale(self.texts["title"], (self.texts["title"].get_width() * t, self.texts["title"].get_height() * t))
         sw.window.buffer.blit(transform_title, ((window_size[0] - transform_title.get_width()) / 2, 20))
 
-        t2 = min(self.time / 70, 1)
-        t3 = max(0, min((self.time - 10) / 70, 1))
-        t2 = sw.transition.ease(sw.enums.EASE_QUADRATIC, t2) * 200
-        t3 = sw.transition.ease(sw.enums.EASE_QUADRATIC, t3) * 200
-        transform_play = self.texts["play"]
-        transform_quit = self.texts["quit"]
-        self.play_pos = ((window_size[0] - transform_play.get_width()) / 2, window_size[1] - t2)
-        self.quit_pos = ((window_size[0] - transform_quit.get_width()) / 2, window_size[1] + 50 - t3)
-        
-        pg.draw.rect(sw.window.buffer, self.play_color, (self.play_pos[0], self.play_pos[1], transform_play.get_width(), transform_play.get_height()))
-        sw.window.buffer.blit(transform_play, self.play_pos)
-
-        pg.draw.rect(sw.window.buffer, self.quit_color, (self.quit_pos[0], self.quit_pos[1], transform_quit.get_width(), transform_quit.get_height()))
-        sw.window.buffer.blit(transform_quit, self.quit_pos)
+        self.play_button.draw()
+        self.quit_button.draw()
 
     def death_tick(self):
-        if mouse_at((self.again_pos[0], self.again_pos[1], self.texts["again"].get_width(), self.texts["again"].get_height())):
-            self.again_color = (40, 40, 40)
-            if sw.rat.pressed(sw.M_LEFT):
-                self.scene = "game"
-                self.reset_game()
-        else:
-            self.again_color = (0, 0, 0)
+        self.time += 1
+        self.menu_button.update_anim(self.time / 70)
+        self.replay_button.update_anim(self.time / 70)
 
-        if mouse_at((self.return_pos[0], self.return_pos[1], self.texts["return"].get_width(), self.texts["return"].get_height())):
-            self.return_color = (40, 40, 40)
-            if sw.rat.pressed(sw.M_LEFT):
-                self.scene = "menu"
-                self.reset_game()
-        else:
-            self.return_color = (0, 0, 0)
+        self.menu_button.tick()
+        self.replay_button.tick()
 
     def death_draw(self):
         sw.window.buffer.blit(self.texts["game_over"], ((window_size[0] - self.texts["game_over"].get_width()) / 2, 20))
@@ -149,13 +161,8 @@ class Game(sw.Entity):
         points = self.font["rb_36"].render(f"Pontos: {self.point_sum}", True, (255, 255, 255))
         sw.window.buffer.blit(points, ((window_size[0] - points.get_width()) / 2, 100))
 
-        self.again_pos = ((window_size[0] - self.texts["again"].get_width()) / 2, window_size[1] - 100)
-        pg.draw.rect(sw.window.buffer, self.again_color, (self.again_pos[0], self.again_pos[1], self.texts["again"].get_width(), self.texts["again"].get_height()))
-        sw.window.buffer.blit(self.texts["again"], self.again_pos)
-
-        self.return_pos = ((window_size[0] - self.texts["return"].get_width()) / 2, window_size[1] - 50)
-        pg.draw.rect(sw.window.buffer, self.return_color, (self.return_pos[0], self.return_pos[1], self.texts["return"].get_width(), self.texts["return"].get_height()))
-        sw.window.buffer.blit(self.texts["return"], self.return_pos)
+        self.replay_button.draw()
+        self.menu_button.draw()
 
     def game_tick(self):
         self.time += 1
@@ -257,6 +264,7 @@ class Player(sw.Entity):
 
         if self.life <= 0:
             game.scene = "death"
+            game.time = 0
 
 class Projectile(sw.Entity):
     def __init__(self, pos, speed, damage, owner):
@@ -403,4 +411,4 @@ sw.start()
 
 
 """
-Engine prevention text for computer problems around deleting last terms"""
+Engine prevention text for computer problems around deleting last """
