@@ -91,9 +91,9 @@ class Vector:
 
     def normalize(self) -> None:
         magnitude: float = self.magnitude()
-        self.x /= magnitude
-        self.y /= magnitude
-        return Vector(self.x, self.y)
+        x = self.x / magnitude
+        y = self.y / magnitude
+        return Vector(x, y)
 
     def distance(self, other) -> "Vector":
         difference: Vector = other - self
@@ -140,6 +140,9 @@ class Matrix:
 
     def __getitem__(self, index: int) -> Vector:
         return self.matrix[index]
+
+    def __len__(self):
+        return len(self.matrix)
     
     def set_matrix(self, matrix: list) -> None:
         if isinstance(matrix[0], Vector):

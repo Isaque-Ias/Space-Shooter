@@ -943,11 +943,11 @@ def image_transform(image: pg.Surface, surface: pg.Surface, position: point, sca
         origin = rotate_array((origin[0] * scale[0],
                                origin[1] * scale[1]), -cam.angle + angle)
 
-    position = (cam.x + (position[0] - cam.x) * camera_ratio[0],
-                cam.y + (position[1] - cam.y) * camera_ratio[1])
+    position = ((position[0] - cam.x) * camera_ratio[0],
+                (position[1] - cam.y) * camera_ratio[1])
 
-    position = (position[0] + origin[0] - cam.x, 
-                position[1] + origin[1] - cam.y)
+    position = (position[0] + origin[0], 
+                position[1] + origin[1])
     
     if cam.angle:
         position = rotate_array(position, cam.angle)
@@ -994,11 +994,11 @@ def rect_transform(surface: pg.Surface, position: point, scale: tuple, color: tu
         image = pg.transform.scale(image, (width * scale[0] * camera_ratio[0] + extra[0], height * scale[1] * camera_ratio[1] + extra[1]))
         image = pg.transform.rotate(image, angle)
 
-    position = (cam.x + (position[0] - cam.x) * camera_ratio[0],
-                cam.y + (position[1] - cam.y) * camera_ratio[1])
+    position = ((position[0] - cam.x) * camera_ratio[0],
+                (position[1] - cam.y) * camera_ratio[1])
 
-    position = (position[0] - cam.x, 
-                position[1] - cam.y)
+    position = (position[0], 
+                position[1])
     
     if cam.angle:
         position = rotate_array(position, cam.angle)
@@ -1026,11 +1026,8 @@ def point_transform(surface: pg.Surface, position: point, color: tuple=False, re
     camera_ratio: tuple = (window.width / cam.width,
                     window.height / cam.height)
 
-    position = (cam.x + (position[0] - cam.x) * camera_ratio[0],
-                cam.y + (position[1] - cam.y) * camera_ratio[1])
-
-    position = (position[0] - cam.x, 
-                position[1] - cam.y)
+    position = ((position[0] - cam.x) * camera_ratio[0],
+                (position[1] - cam.y) * camera_ratio[1])
     
     if cam.angle:
         position = rotate_array(position, cam.angle)
@@ -1051,6 +1048,100 @@ def point_transform(surface: pg.Surface, position: point, color: tuple=False, re
     # if ret_surf:
     #     return_surface: pg.Surface = pg.surface.Surface()
     pg.draw.circle(surface, color, position, 2)
+
+def line_transform(surface: pg.Surface, start: point, end: point, color: tuple=False, ret_surf: bool=False) -> pg.Surface | None:
+    cam: camera.cam = camera.view[camera._current_camera]
+
+    camera_ratio: tuple = (window.width / cam.width,
+                           window.height / cam.height)
+
+    position_start = ((start[0] - cam.x) * camera_ratio[0],
+                      (start[1] - cam.y) * camera_ratio[1])
+    position_end = ((end[0] - cam.x) * camera_ratio[0],
+                    (end[1] - cam.y) * camera_ratio[1])
+    
+    if cam.angle:
+        position_start = rotate_array(position_start, cam.angle)
+        position_end = rotate_array(position_end, cam.angle)
+
+    top_left = (max(position_start[0], position_end[0]), max(position_start[1], position_end[1]))
+    bottom_right = (min(position_start[0], position_end[0]), min(position_start[1], position_end[1]))
+    out_bound_left: bool = top_left[0] < -window.width / 2
+    out_bound_right: bool = bottom_right[0] > window.width / 2
+    out_bound_top: bool = top_left[1] < -window.height / 2
+    out_bound_bottom: bool = bottom_right[1] > window.height / 2
+    if out_bound_right or out_bound_left or out_bound_top or out_bound_bottom:
+        return
+
+    position_start = (position_start[0] + window.width / 2,
+                      position_start[1] + window.height / 2)
+    position_end = (position_end[0] + window.width / 2,
+                    position_end[1] + window.height / 2)
+    
+    if not color:
+        color = color.black
+
+    # if ret_surf:
+    #     return_surface: pg.Surface = pg.surface.Surface()
+    pg.draw.line(surface, color, position_start, position_end, 2)
+
+def polygon_transform(surface: pg.Surface, vertices: list, color: tuple=False, ret_surf: bool=False) -> pg.Surface | None:
+    cam: camera.cam = camera.view[camera._current_camera]
+
+    camera_ratio: tuple = (window.width / cam.width,
+                           window.height / cam.height)
+
+    vertices_pos = []
+    for vertex in vertices:
+        position = ((vertex[0] - cam.x) * camera_ratio[0],
+                    (vertex[1] - cam.y) * camera_ratio[1])
+        vertices_pos.append(position)
+    
+    if cam.angle:
+        for vertex in vertices_pos:
+            vertex = rotate_array(vertex, cam.angle)
+            
+    top_left = (max(vertices_pos, key=lambda a: a[0])[0], max(vertices_pos, key=lambda a: a[1])[1])
+    bottom_right = (min(vertices_pos, key=lambda a: a[0])[0], min(vertices_pos, key=lambda a: a[1])[1])
+
+    out_bound_left: bool = top_left[0] < -window.width / 2
+    out_bound_right: bool = bottom_right[0] > window.width / 2
+    out_bound_top: bool = top_left[1] < -window.height / 2
+    out_bound_bottom: bool = bottom_right[1] > window.height / 2
+
+    if out_bound_right or out_bound_left or out_bound_top or out_bound_bottom:
+        return
+
+    for i in range(len(vertices_pos)):
+        vertices_pos[i] = (vertices_pos[i][0] + window.width / 2,
+                           vertices_pos[i][1] + window.height / 2)
+    
+    if not color:
+        color = color.black
+
+    # if ret_surf:
+    #     return_surface: pg.Surface = pg.surface.Surface()
+    pg.draw.polygon(surface, color, vertices_pos)
+
+def coord_transform(coord: point) -> point:
+    cam: camera.cam = camera.view[camera._current_camera]
+
+    camera_ratio: tuple = (window.width / cam.width,
+                           window.height / cam.height)
+
+    position = (cam.x + (coord[0] - cam.x) * camera_ratio[0],
+                cam.y + (coord[1] - cam.y) * camera_ratio[1])
+
+    position = (position[0] - cam.x, 
+                position[1] - cam.y)
+    
+    if cam.angle:
+        position = rotate_array(position, cam.angle)
+
+    position = (position[0] + window.width / 2,
+                position[1] + window.height / 2)
+
+    return position
 
 def binary_search(array: list, array_len: int, position: int, value: number, app_flags: searchtype=False) -> int:
     if array_len == 0:
